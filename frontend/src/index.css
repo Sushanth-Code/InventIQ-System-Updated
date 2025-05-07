@@ -1,0 +1,31 @@
+/* src/index.css */
+
+/* Inject Tailwind's base styles */
+@tailwind base;
+
+/* Inject Tailwind's component classes */
+@tailwind components;
+
+/* Inject Tailwind's utility classes */
+@tailwind utilities;
+
+/* Optional: Add your own global base styles here */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f7fafc; /* Example background color */
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Example: Style for the optional loading message in index.html */
+#root > div[style*="Loading InventiQ"] {
+  color: #4a5568; /* text-gray-700 */
+}

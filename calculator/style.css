@@ -1,0 +1,106 @@
+.calculator {
+    font-family: "Roboto", sans-serif;
+    width: 800px;
+    margin: 24px auto;
+    background: #fff;
+    box-shadow: 0 12px 50px -11px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    color: #14213d;
+    overflow: hidden;
+}
+
+.calculator, 
+.calculator * {
+    box-sizing: border-box;
+}
+
+.calculator .top {
+    background: #14213d;
+    color: #fff;
+    padding: 32px;
+}
+
+.calculator .top h2 {
+    margin-top: 0;
+}
+
+.calculator form {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.calculator .title {
+    margin-bottom: 16px;
+}
+
+.calculator form input {
+    font-size: 20px;
+    padding: 8px 24px;
+    width: 100%;
+}
+
+
+.calculator .result {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.calculator .result .left {
+    width: 100%;
+    padding: 8px 32px;
+}
+
+.calculator .left h3 {
+    font-size: 16px;
+    font-weight: 400;
+    margin-bottom: 8px;
+}
+
+.calculator .result .value {
+    font-size: 20px;
+    font-weight: 900;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(20, 33, 61, 0.2);
+}
+
+.calculator .result .value::before {
+    content: "$";
+    font-size: 20px;
+    font-weight: 400;
+    margin-right: 6px;
+}
+
+.calculator .calculate-btn {
+    background-color: #e63946;
+    color: #fff;
+    border: none;
+    padding: 8px 32px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 900;
+    cursor: pointer;
+    margin: 24px 0;
+}
+
+.calculator .right {
+    width: 50%;
+}
+
+@media (max-width: 650px) {
+    .calculator {
+        width: 90%;
+        max-width: 500px;
+    }
+
+    .calculator form {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .calculator .result {
+        flex-direction: column;
+        text-align: center;
+    }
+}

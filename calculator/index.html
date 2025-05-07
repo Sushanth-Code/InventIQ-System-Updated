@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="calculator">
+        <div class="top">
+            <h2>Calculator</h2>
+
+            <form action="#">
+                <div class="group">
+                    <div class="title">Selling Price</div>
+                    <input type="number" class="selling-price" placeholder="Selling price">
+                </div>
+
+                <div class="group">
+                    <div class="title">Cost</div>
+                    <input type="number" class="cost" placeholder="Cost">
+                </div>
+            </form>
+        </div>
+
+        <div class="result">
+            <div class="left">
+                <div class="revenue">
+                    <h3>Revenue</h3>   
+                    <div class="value">0</div> 
+                </div>
+
+                <div class="left-cost">
+                    <h3>Cost</h3>   
+                    <div class="value">0</div> 
+                </div>
+
+                <div class="listing-fee">
+                    <h3>Listing fee</h3>   
+                    <div class="value">0</div> 
+                </div>
+
+                <div class="transaction-fee">
+                    <h3>Transaction fee</h3>   
+                    <div class="value">0</div> 
+                </div>
+
+                <div class="processing-fee">
+                    <h3>Processing fee</h3>   
+                    <div class="value">0</div> 
+                </div>
+
+                <div class="total-cost">
+                    <h3>Total cost</h3>   
+                    <div class="value">0</div> 
+                </div>
+
+                <div class="profit">
+                    <h3>Profit</h3>   
+                    <div class="value">0</div> 
+                </div>
+
+                <button class="calculate-btn">Calculate</button>
+            </div>
+
+            <div class="right">
+                <canvas id="myChart" width="400" height="400"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.6.2/dist/chart.min.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
