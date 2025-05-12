@@ -88,6 +88,7 @@ const TrendsPage: React.FC = () => {
         
         // Fetch trend data
         const trendData = await predictionService.getTrendData();
+        console.log('Trend data:', trendData); // Debug log
         
         // Process trending products
         const trending = trendData.topSellingProducts || [];
@@ -111,6 +112,7 @@ const TrendsPage: React.FC = () => {
         
         setLoading(false);
       } catch (err: any) {
+        console.error('Error fetching trend data:', err);
         setError(err.message || 'Failed to fetch trend data');
         setLoading(false);
       }
@@ -376,32 +378,36 @@ const TrendsPage: React.FC = () => {
                     <TableRow>
                       <TableCell>Product</TableCell>
                       <TableCell>Category</TableCell>
-                      <TableCell>Current Stock</TableCell>
-                      <TableCell>Reorder Level</TableCell>
                       <TableCell>Avg. Sales</TableCell>
                       <TableCell>Trend</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {trendingProductsData.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>{product.name}</TableCell>
-                        <TableCell>{product.category}</TableCell>
-                        <TableCell>{product.current_stock}</TableCell>
-                        <TableCell>{product.reorder_level}</TableCell>
-                        <TableCell>{product.avgSales.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            {product.trend === 'up' ? (
-                              <TrendingUp color="success" sx={{ mr: 1 }} />
-                            ) : (
-                              <TrendingDown color="error" sx={{ mr: 1 }} />
-                            )}
-                            {product.trendPercentage}%
-                          </Box>
-                        </TableCell>
+                    {trendingProductsData.length > 0 ? (
+                      trendingProductsData.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>{product.name}</TableCell>
+                          <TableCell>{product.category}</TableCell>
+                          <TableCell>{product.avgSales ? product.avgSales.toFixed(2) : '0.00'} units/day</TableCell>
+                          <TableCell>
+                            <Box display="flex" alignItems="center">
+                              {product.trend === 'up' ? (
+                                <TrendingUp color="success" sx={{ mr: 1 }} />
+                              ) : product.trend === 'down' ? (
+                                <TrendingDown color="error" sx={{ mr: 1 }} />
+                              ) : (
+                                <TrendingUp color="info" sx={{ mr: 1 }} />
+                              )}
+                              {product.trendPercentage || 0}%
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">No trending products data available</TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -419,7 +425,9 @@ const TrendsPage: React.FC = () => {
                       {trendingProductsData.length > 0 ? trendingProductsData[0].name : 'N/A'}
                     </Typography>
                     <Typography variant="body2">
-                      {trendingProductsData.length > 0 ? `${trendingProductsData[0].avgSales.toFixed(2)} units/day` : ''}
+                      {trendingProductsData.length > 0 && trendingProductsData[0].avgSales ? 
+                        `${trendingProductsData[0].avgSales.toFixed(2)} units/day` : 
+                        '0.00 units/day'}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -444,12 +452,13 @@ const TrendsPage: React.FC = () => {
                   <CardContent>
                     <Typography variant="h6">Best Category</Typography>
                     <Typography variant="h4">
-                      {categoryTrends.length > 0 ? 
-                        categoryTrends.sort((a, b) => b.trend - a.trend)[0].category : 'N/A'}
+                      {categoryTrends && categoryTrends.length > 0 ? 
+                        [...categoryTrends].sort((a, b) => b.trend - a.trend)[0].category : 'N/A'}
                     </Typography>
                     <Typography variant="body2">
-                      {categoryTrends.length > 0 ? 
-                        `${categoryTrends.sort((a, b) => b.trend - a.trend)[0].trend}% growth` : ''}
+                      {categoryTrends && categoryTrends.length > 0 ? 
+                        `${[...categoryTrends].sort((a, b) => b.trend - a.trend)[0].trend}% growth` : 
+                        '0% growth'}
                     </Typography>
                   </CardContent>
                 </Card>

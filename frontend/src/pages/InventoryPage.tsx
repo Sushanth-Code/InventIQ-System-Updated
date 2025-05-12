@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { inventoryService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box } from '@mui/material';
 
 interface Product {
   id: string;
@@ -23,20 +24,46 @@ const InventoryPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [stockFilter, setStockFilter] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteSupplierDialogOpen, setDeleteSupplierDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
+  // Function to fetch products that can be called multiple times
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      // Clear any cached data to ensure we get the latest
+      localStorage.removeItem('inventoryData');
+      
+      const data = await inventoryService.getAllProducts();
+      setProducts(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch products when component mounts
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const data = await inventoryService.getAllProducts();
-        setProducts(data);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch products');
-      } finally {
-        setLoading(false);
+    fetchProducts();
+  }, []);
+  
+  // Add a listener for when the page becomes visible again (e.g., after navigating back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Refresh data when page becomes visible again
+        fetchProducts();
       }
     };
-
-    fetchProducts();
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Clean up the event listener when component unmounts
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Get unique categories for the filter
@@ -61,6 +88,63 @@ const InventoryPage: React.FC = () => {
     } catch (err: any) {
       alert('Error recording sale: ' + (err.response?.data?.message || err.message));
     }
+  };
+  
+  // Handle opening delete dialog
+  const handleDeleteClick = (product: Product) => {
+    setProductToDelete(product);
+    setDeleteDialogOpen(true);
+  };
+  
+  // Handle opening delete supplier dialog
+  const handleDeleteSupplierClick = (product: Product) => {
+    setProductToDelete(product);
+    setDeleteSupplierDialogOpen(true);
+  };
+  
+  // Handle delete product confirmation
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
+    
+    try {
+      await inventoryService.deleteProduct(productToDelete.id, false);
+      
+      // Remove the product from state
+      setProducts(prevProducts => prevProducts.filter(product => product.id !== productToDelete.id));
+      
+      // Close the dialog
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
+    } catch (err: any) {
+      alert('Error deleting product: ' + (err.response?.data?.message || err.message));
+    }
+  };
+  
+  // Handle delete supplier confirmation
+  const handleDeleteSupplierConfirm = async () => {
+    if (!productToDelete) return;
+    
+    try {
+      await inventoryService.deleteProduct(productToDelete.id, true);
+      
+      // Remove all products from this supplier
+      const supplierName = productToDelete.supplier;
+      setProducts(prevProducts => prevProducts.filter(product => product.supplier !== supplierName));
+      
+      // Close the dialog
+      setDeleteSupplierDialogOpen(false);
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
+    } catch (err: any) {
+      alert('Error deleting supplier: ' + (err.response?.data?.message || err.message));
+    }
+  };
+  
+  // Handle dialog close
+  const handleDialogClose = () => {
+    setDeleteDialogOpen(false);
+    setDeleteSupplierDialogOpen(false);
+    setProductToDelete(null);
   };
 
   // Filter products based on search and filters
@@ -180,7 +264,7 @@ const InventoryPage: React.FC = () => {
                   <td className="py-3 px-4">{product.supplier}</td>
                   <td className="py-3 px-4">{product.current_stock}</td>
                   <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                       product.current_stock === 0
                         ? 'bg-red-100 text-red-800'
                         : product.current_stock <= product.reorder_level
@@ -216,6 +300,14 @@ const InventoryPage: React.FC = () => {
                           Edit
                         </Link>
                       )}
+                      {hasPermission('delete_product') && (
+                        <button
+                          onClick={() => handleDeleteClick(product)}
+                          className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 ml-2"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -230,6 +322,61 @@ const InventoryPage: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {/* Delete Product Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDialogClose}
+      >
+        <DialogTitle>Delete Options</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Please select a delete option for "{productToDelete?.name}":
+          </Typography>
+          <Box mt={2}>
+            <Typography variant="body2" color="textSecondary">
+              These actions cannot be undone.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogClose} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete Only This Product
+          </Button>
+          <Button onClick={handleDeleteSupplierConfirm} color="error" variant="outlined">
+            Delete All Products From This Supplier
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Delete Supplier Confirmation Dialog */}
+      <Dialog
+        open={deleteSupplierDialogOpen}
+        onClose={handleDialogClose}
+      >
+        <DialogTitle>Confirm Delete Supplier</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the supplier "{productToDelete?.supplier}" and ALL associated products?
+          </Typography>
+          <Box mt={2}>
+            <Typography variant="body2" color="error">
+              This will permanently delete ALL products from this supplier. This action cannot be undone.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogClose} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteSupplierConfirm} color="error" variant="contained">
+            Delete Supplier and All Products
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

@@ -77,9 +77,9 @@ const DashboardPage: React.FC = () => {
           }`}
         >
           <span className="material-icons mr-2">
-            {isListening ? 'mic' : 'mic_none'}
+            {isListening ? 'mic' : 'Ask'}
           </span>
-          {isListening ? 'Stop Listening' : 'Ask Assistant'}
+          {isListening ? 'Stop Listening' : 'Assistant'}
         </button>
       </div>
       

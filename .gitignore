@@ -1,32 +1,23 @@
-# Dependencies
+# dependencies
 node_modules/
 /.pnp
 .pnp.js
-yarn.lock
-package-lock.json
 
-# Testing
+# testing
 /coverage
 
-# Production
+# production
 /build
 /dist
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-venv/
-env/
+# misc
+.DS_Store
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Logs
-logs
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -34,14 +25,26 @@ yarn-error.log*
 # Editor directories and files
 .idea/
 .vscode/
-*.swp
-*.swo
-.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# Local data files
-/backend/data/*.csv
-!/backend/data/inventory_data.csv
-
-# Cache
-.eslintcache
+# Local development files
+*.log
 .cache/
+
+# Python virtual environment
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local database files
+*.sqlite3
+*.db
+
+# Temporary files
+tmp/
+temp/

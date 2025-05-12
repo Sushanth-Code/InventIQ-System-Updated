@@ -90,13 +90,26 @@ def update_product(current_user, product_id):
 def delete_product(current_user, product_id):
     if current_user.role != 'admin':
         return jsonify({'message': 'Permission denied!'}), 403
-        
+    
+    # Check if we should delete all products from the supplier
+    delete_supplier = request.args.get('delete_supplier', 'false').lower() == 'true'
+    
     product = Product.query.get_or_404(product_id)
+    supplier_name = product.supplier
     
-    db.session.delete(product)
-    db.session.commit()
-    
-    return jsonify({'message': 'Product deleted successfully!'}), 200
+    if delete_supplier:
+        # Delete all products from this supplier
+        products_to_delete = Product.query.filter_by(supplier=supplier_name).all()
+        for p in products_to_delete:
+            db.session.delete(p)
+        
+        db.session.commit()
+        return jsonify({'message': f'Supplier {supplier_name} and all associated products deleted successfully!'}), 200
+    else:
+        # Delete just this product
+        db.session.delete(product)
+        db.session.commit()
+        return jsonify({'message': 'Product deleted successfully!'}), 200
 
 @inventory_bp.route('/transaction', methods=['POST'])
 @token_required

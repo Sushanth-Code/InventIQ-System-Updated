@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { inventoryService } from '../services/api';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+
 
 interface Product {
   id: string;
@@ -128,7 +130,8 @@ const EditProductPage: React.FC = () => {
         onClick={() => navigate('/inventory')}
         className="mb-4 flex items-center text-primary hover:underline"
       >
-        <span className="material-icons mr-1">arrow_back</span> Back to Inventory
+        <ArrowBackIcon className="mr-1" />
+         Back to Inventory
       </button>
 
       <div className="bg-white rounded-lg shadow p-6">

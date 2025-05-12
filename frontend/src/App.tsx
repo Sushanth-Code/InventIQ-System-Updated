@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { VoiceProvider } from './contexts/VoiceContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import InventoryPage from './pages/InventoryPage';
@@ -29,8 +30,9 @@ const ProtectedRoute: React.FC<{ element: React.ReactElement }> = ({ element }) 
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <VoiceProvider>
-        <Router>
+      <NotificationProvider>
+        <VoiceProvider>
+          <Router>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route
@@ -58,8 +60,9 @@ const App: React.FC = () => {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <VoiceAssistant />
-        </Router>
-      </VoiceProvider>
+          </Router>
+        </VoiceProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 };

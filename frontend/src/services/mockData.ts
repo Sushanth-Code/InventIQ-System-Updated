@@ -292,9 +292,8 @@ export const mockApiService = {
       const existingIndex = products.findIndex((p: Product) => p.id === productData.id || p.product_id === productData.id);
       
       if (existingIndex >= 0) {
-        // Update existing product
-        products[existingIndex] = { ...products[existingIndex], ...productData };
-        console.log('Updated existing product:', productData.id);
+        // Throw error for duplicate product ID
+        throw new Error(`Product ID '${productData.id}' already exists. Product IDs must be unique.`);
       } else {
         // Add the new product
         products.push(productData);
@@ -342,23 +341,43 @@ export const mockApiService = {
     }
   },
   
-  deleteProduct: async (productId: string) => {
+  deleteProduct: async (productId: string, deleteSupplier: boolean = false) => {
     try {
       // Get current products
       const products = await mockApiService.getAllProducts();
       
-      // Filter out the product to delete
-      const updatedProducts = products.filter((p: Product) => p.id !== productId && p.product_id !== productId);
+      // Find the product to delete first
+      const productToDelete = products.find((p: Product) => p.id === productId || p.product_id === productId);
       
-      // Check if any product was removed
-      if (updatedProducts.length === products.length) {
+      if (!productToDelete) {
         throw new Error('Product not found');
+      }
+      
+      let updatedProducts;
+      
+      if (deleteSupplier) {
+        // Delete all products from this supplier
+        const supplierName = productToDelete.supplier;
+        updatedProducts = products.filter((p: Product) => p.supplier !== supplierName);
+        
+        // Check if any products were removed
+        if (updatedProducts.length === products.length) {
+          throw new Error('No products found for this supplier');
+        }
+      } else {
+        // Delete only the specific product
+        updatedProducts = products.filter((p: Product) => p.id !== productId && p.product_id !== productId);
       }
       
       // Save updated products
       await saveInventoryData(updatedProducts);
       
-      return { success: true, message: 'Product deleted successfully' };
+      return { 
+        success: true, 
+        message: deleteSupplier 
+          ? `Supplier ${productToDelete.supplier} and all associated products deleted successfully` 
+          : 'Product deleted successfully' 
+      };
     } catch (error) {
       console.error('Error deleting product:', error);
       throw new Error('Failed to delete product');
@@ -391,7 +410,8 @@ export const mockApiService = {
     let trendingUp = 0;
     let trendingDown = 0;
     
-    products.forEach((product: Product) => {
+    // Process products to calculate trending products
+    const topSellingProducts = products.map(product => {
       if (product.historical_sales) {
         const salesData = Object.values(product.historical_sales) as number[];
         if (salesData.length >= 6) {
@@ -401,13 +421,61 @@ export const mockApiService = {
           const firstHalfAvg = firstHalf.reduce((sum: number, val: number) => sum + val, 0) / firstHalf.length;
           const secondHalfAvg = secondHalf.reduce((sum: number, val: number) => sum + val, 0) / secondHalf.length;
           
+          const avgSales = salesData.reduce((sum, val) => sum + val, 0) / salesData.length;
+          const trend = secondHalfAvg > firstHalfAvg ? 'up' : 'down';
+          const trendPercentage = Math.abs(Math.round(((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100));
+          
           if (secondHalfAvg > firstHalfAvg * 1.1) trendingUp++;
           else if (secondHalfAvg < firstHalfAvg * 0.9) trendingDown++;
+          
+          return {
+            id: product.id,
+            name: product.name,
+            category: product.category,
+            avgSales,
+            trend,
+            trendPercentage
+          };
         }
       }
+      
+      // Default values if no historical sales data
+      return {
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        avgSales: 0,
+        trend: 'stable',
+        trendPercentage: 0
+      };
+    }).sort((a, b) => b.avgSales - a.avgSales).slice(0, 5); // Top 5 selling products
+    
+    // Generate sales trend data for the last 7 days
+    const salesTrend = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const formattedDate = date.toISOString().split('T')[0];
+      salesTrend.push({
+        date: formattedDate,
+        sales: Math.floor(Math.random() * 100) + 50 // Random sales between 50-150
+      });
+    }
+    
+    // Generate category trends
+    const categories = [...new Set(products.map(p => p.category))];
+    const categoryTrends = categories.map(category => {
+      return {
+        category,
+        trend: Math.floor(Math.random() * 30) - 10 // Random trend between -10 and +20
+      };
     });
     
     return { 
+      topSellingProducts,
+      salesTrend,
+      categoryTrends,
       trendingUp, 
       trendingDown, 
       stableProducts: products.length - trendingUp - trendingDown 

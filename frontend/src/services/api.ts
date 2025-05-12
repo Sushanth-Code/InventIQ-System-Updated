@@ -143,18 +143,24 @@ export const inventoryService = {
   },
   updateProduct: async (productId: string, productData: any) => {
     if (useMockData) {
-      // Simulate successful product update
-      return { success: true, message: 'Product updated successfully (Mock)' };
+      // Use the mock service to update the product
+      const result = await mockApiService.updateProduct(productId, productData);
+      
+      // Force a refresh of the inventory data in localStorage
+      // Clear any cached data to ensure fresh data is loaded next time
+      localStorage.removeItem('inventoryData');
+      
+      return result;
     }
     const response = await api.put(`/inventory/${productId}`, productData);
     return response.data;
   },
-  deleteProduct: async (productId: string) => {
+  deleteProduct: async (productId: string, deleteSupplier: boolean = false) => {
     if (useMockData) {
       // Simulate successful product deletion
-      return { success: true, message: 'Product deleted successfully (Mock)' };
+      return { success: true, message: deleteSupplier ? 'Supplier and all products deleted successfully (Mock)' : 'Product deleted successfully (Mock)' };
     }
-    const response = await api.delete(`/inventory/${productId}`);
+    const response = await api.delete(`/inventory/${productId}?delete_supplier=${deleteSupplier}`);
     return response.data;
   },
   recordTransaction: async (transactionData: any) => {

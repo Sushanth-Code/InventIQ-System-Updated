@@ -55,11 +55,46 @@ const AddProductPage: React.FC = () => {
     setError(null);
 
     try {
-      // Generate a unique ID if not provided
-      if (!formData.id) {
-        const timestamp = new Date().getTime();
-        const randomNum = Math.floor(Math.random() * 1000);
-        formData.id = `P${timestamp}${randomNum}`;
+      // If ID is provided, check if it's already in use
+      if (formData.id) {
+        try {
+          const products = await inventoryService.getAllProducts();
+          const existingProduct = products.find((p: any) => p.id === formData.id || p.product_id === formData.id);
+          
+          if (existingProduct) {
+            throw new Error(`Product ID '${formData.id}' already exists. Product IDs must be unique.`);
+          }
+        } catch (err: any) {
+          if (err.message.includes('already exists')) {
+            throw err;
+          }
+          // If error is not related to duplicate ID, continue with submission
+        }
+      } else {
+        // Generate a unique ID if not provided
+        try {
+          const products = await inventoryService.getAllProducts();
+          
+          // Find the highest numeric product ID
+          let highestId = 0;
+          products.forEach((p: any) => {
+            const id = p.id || p.product_id;
+            if (id && id.startsWith('P')) {
+              const numericPart = parseInt(id.substring(1), 10);
+              if (!isNaN(numericPart) && numericPart > highestId) {
+                highestId = numericPart;
+              }
+            }
+          });
+          
+          // Create next ID in sequence
+          formData.id = `P${String(highestId + 1).padStart(4, '0')}`;
+        } catch (err) {
+          // If error fetching products, use timestamp-based ID as fallback
+          const timestamp = new Date().getTime();
+          const randomNum = Math.floor(Math.random() * 1000);
+          formData.id = `P${timestamp}${randomNum}`;
+        }
       }
 
       await inventoryService.addProduct(formData);
@@ -71,7 +106,7 @@ const AddProductPage: React.FC = () => {
       }, 1500);
     } catch (err: any) {
       console.error('Error adding product:', err);
-      setError(err.response?.data?.message || 'Failed to add product. Please try again.');
+      setError(err.message || err.response?.data?.message || 'Failed to add product. Please try again.');
     } finally {
       setLoading(false);
     }

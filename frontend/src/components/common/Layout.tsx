@@ -1,8 +1,10 @@
 import React, { useState, ReactNode, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { Tooltip, Badge, Avatar, Menu, MenuItem, Divider, ListItemIcon, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box } from '@mui/material';
 import { Dashboard, Inventory, Calculate, Logout, AccountCircle, Notifications, Settings, AdminPanelSettings, Person, TrendingUp, Add, Edit, Delete, Refresh, Psychology, AutoGraph } from '@mui/icons-material';
+import NotificationDropdown from './NotificationDropdown';
 
 interface LayoutProps {
   children?: ReactNode;
@@ -10,14 +12,36 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout, hasPermission, loginTime } = useAuth();
+  const { unreadCount } = useNotifications();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState<null | HTMLElement>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
   const location = useLocation();
   
   // Format login time for display
   const formattedLoginTime = loginTime ? new Date(loginTime).toLocaleString() : 'Unknown';
+  
+  // Update current time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+  
+  // Format current time for display in Indian format
+  const formattedCurrentTime = currentTime.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
   
   useEffect(() => {
     // Check if user has permission to access the current page
@@ -46,6 +70,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+  
+  const handleNotificationOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setNotificationAnchorEl(event.currentTarget);
+  };
+  
+  const handleNotificationClose = () => {
+    setNotificationAnchorEl(null);
   };
   
   const handleLogoutClick = () => {
@@ -205,17 +237,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           
           <div className="flex items-center space-x-4">
             <Tooltip title="Last login: ${formattedLoginTime}">
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 cursor-pointer">
                 <span className="hidden md:inline">Logged in: </span>
                 {formattedLoginTime.split(',')[0]}
+                <span className="ml-2 font-medium text-primary">{formattedCurrentTime}</span>
               </div>
             </Tooltip>
             
             <Tooltip title="Notifications">
-              <Badge badgeContent={4} color="primary" className="cursor-pointer">
+              <Badge badgeContent={unreadCount} color="primary" className="cursor-pointer" onClick={handleNotificationOpen}>
                 <Notifications className="text-gray-500" />
               </Badge>
             </Tooltip>
+            
+            {/* Notification Dropdown */}
+            <NotificationDropdown anchorEl={notificationAnchorEl} onClose={handleNotificationClose} />
             
             <Tooltip title="Account settings">
               <Avatar 
