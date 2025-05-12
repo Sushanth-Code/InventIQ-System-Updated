@@ -110,19 +110,6 @@
 - **Real-time Notifications**: Stay informed about critical inventory events with customizable alerts
 - **Comprehensive Analytics**: Make data-driven decisions with detailed reports and visualizations
 
-## 👨‍💻 Creators
-
-This project was developed by a talented team of AIML experts:
-
-<div align="center">
-
-| <img src="https://github.com/identicons/sushanth.png" width="100" height="100" alt="Sushanth"> | <img src="https://github.com/identicons/abhisheka.png" width="100" height="100" alt="Abhisheka"> | <img src="https://github.com/identicons/rachana.png" width="100" height="100" alt="Rachana"> | <img src="https://github.com/identicons/dimple.png" width="100" height="100" alt="Dimple"> |
-|----------|----------|----------|----------|
-| **Sushanth P H** | **Abhisheka** | **Rachana M R** | **Dimple R** |
-| Full Stack Lead | AI/ML Engineer | Frontend Developer | Backend Developer |
-
-</div>
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
