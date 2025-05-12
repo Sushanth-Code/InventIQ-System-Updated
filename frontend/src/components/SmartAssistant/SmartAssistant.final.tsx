@@ -37,11 +37,8 @@ import {
   Inventory as InventoryIcon,
   BarChart as BarChartIcon,
   Settings as SettingsIcon,
-  Info as InfoIcon,
-  VolumeUp as VolumeUpIcon,
-  VolumeOff as VolumeOffIcon
+  Info as InfoIcon
 } from '@mui/icons-material';
-import { ListSubheader } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import { inventoryService, predictionService } from '../../services/api';
 import enhancedOllamaService from '../../services/enhancedOllamaService';
@@ -58,37 +55,21 @@ const SmartAssistant: React.FC = () => {
   const [speechRecognition, setSpeechRecognition] = useState<any>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [temperature, setTemperature] = useState(0.7);
-  const [speaking, setSpeaking] = useState(false);
-  const [voiceIndex, setVoiceIndex] = useState(0); // For selecting voice
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [speechEnabled, setSpeechEnabled] = useState(true); // Speech enabled by default
   
   // Ref for messages container to auto-scroll
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   
-  // Fetch inventory data on component mount
+  // Fetch inventory data and initialize on component mount
   useEffect(() => {
     fetchInventoryData();
     
-    // Check if we've shown welcome message in this session
-    const hasShownWelcome = sessionStorage.getItem('hasShownWelcome') === 'true';
-    
-    // Add welcome message only once per session
-    if (!hasShownWelcome) {
-      const welcomeMessageText = "Hello! I'm your Smart Inventory Assistant powered by Llama. I can help you manage your inventory, provide insights, and answer any questions you might have. What would you like to know today?";
-      const welcomeMessage = {
-        text: welcomeMessageText,
-        role: 'assistant' as const,
-        timestamp: new Date()
-      };
-      setMessages([welcomeMessage]);
-      
-      // Mark that we've shown the welcome message
-      sessionStorage.setItem('hasShownWelcome', 'true');
-      
-      // Store welcome message text for speech
-      sessionStorage.setItem('welcomeMessageText', welcomeMessageText);
-    }
+    // Add welcome message
+    const welcomeMessage = {
+      text: "Hello! I'm your Smart Inventory Assistant powered by Llama. I can help you manage your inventory, provide insights, and answer any questions you might have. What would you like to know today?",
+      role: 'assistant' as const,
+      timestamp: new Date()
+    };
+    setMessages([welcomeMessage]);
     
     // Initialize speech recognition if available
     if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
@@ -109,61 +90,6 @@ const SmartAssistant: React.FC = () => {
       };
       
       setSpeechRecognition(recognition);
-    }
-    
-    // Initialize speech synthesis
-    if ('speechSynthesis' in window) {
-      // Get available voices
-      const updateVoices = () => {
-        const voices = window.speechSynthesis.getVoices();
-        setAvailableVoices(voices);
-        
-        // Try to get saved voice preference
-        const savedVoiceIndex = localStorage.getItem('preferredVoiceIndex');
-        
-        if (savedVoiceIndex && voices.length > Number(savedVoiceIndex)) {
-          // Use saved voice preference if available
-          setVoiceIndex(Number(savedVoiceIndex));
-        } else {
-          // Group voices by gender for better selection
-          const maleVoices = voices.filter(voice => 
-            voice.name.includes('Male') || 
-            voice.name.includes('male')
-          );
-          
-          const femaleVoices = voices.filter(voice => 
-            voice.name.includes('Female') || 
-            voice.name.includes('female')
-          );
-          
-          // Set default voice - try to find a good quality voice
-          if (maleVoices.length > 0) {
-            // Set default to first male voice found
-            setVoiceIndex(voices.indexOf(maleVoices[0]));
-          } else if (femaleVoices.length > 0) {
-            // If no male voices, use female voice
-            setVoiceIndex(voices.indexOf(femaleVoices[0]));
-          } else if (voices.length > 0) {
-            // If no gender-specific voices, use the first available voice
-            setVoiceIndex(0);
-          }
-        }
-      };
-      
-      // Chrome loads voices asynchronously
-      if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = updateVoices;
-      }
-      
-      updateVoices();
-      
-      // Speak the welcome message if it exists and speech is enabled
-      setTimeout(() => {
-        const welcomeText = sessionStorage.getItem('welcomeMessageText');
-        if (welcomeText && speechEnabled) {
-          speakText(welcomeText);
-        }
-      }, 1000);
     }
   }, []);
   
@@ -195,43 +121,6 @@ const SmartAssistant: React.FC = () => {
       speechRecognition.start();
       setListening(true);
     }
-  };
-  
-  // Speech synthesis function
-  const speakText = (text: string) => {
-    if (!('speechSynthesis' in window) || !speechEnabled) return;
-    
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Set voice if available
-    if (availableVoices.length > 0 && voiceIndex >= 0) {
-      utterance.voice = availableVoices[voiceIndex];
-    }
-    
-    // Configure voice parameters
-    utterance.rate = 1.0; // Normal speed
-    utterance.pitch = 1.0; // Normal pitch
-    utterance.volume = 1.0; // Full volume
-    
-    // Handle speech events
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    
-    // Start speaking
-    window.speechSynthesis.speak(utterance);
-  };
-  
-  // Toggle speech synthesis
-  const toggleSpeech = () => {
-    if (speaking) {
-      window.speechSynthesis.cancel();
-      setSpeaking(false);
-    }
-    setSpeechEnabled(!speechEnabled);
   };
 
   // Prepare inventory context for AI
@@ -303,11 +192,6 @@ const SmartAssistant: React.FC = () => {
       };
       
       setMessages(prev => [...prev, aiMessage]);
-      
-      // Speak the response if speech is enabled
-      if (speechEnabled) {
-        speakText(response);
-      }
     } catch (error) {
       console.error('Error generating response:', error);
       
@@ -413,22 +297,6 @@ const SmartAssistant: React.FC = () => {
               />
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title={speaking ? "Speaking..." : (speechEnabled ? "Voice output enabled" : "Voice output disabled")}>
-                <IconButton 
-                  color={speaking ? "secondary" : (speechEnabled ? "primary" : "default")}
-                  onClick={toggleSpeech}
-                  sx={{ 
-                    animation: speaking ? 'pulse 1.5s infinite' : 'none',
-                    '@keyframes pulse': {
-                      '0%': { opacity: 1 },
-                      '50%': { opacity: 0.5 },
-                      '100%': { opacity: 1 }
-                    }
-                  }}
-                >
-                  <VolumeUpIcon />
-                </IconButton>
-              </Tooltip>
               <IconButton 
                 color={listening ? "error" : "primary"}
                 onClick={toggleListening}
@@ -467,58 +335,6 @@ const SmartAssistant: React.FC = () => {
                     </Tooltip>
                   </Box>
                 </Grid>
-                {availableVoices.length > 0 && (
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2">Voice:</Typography>
-                      <FormControl fullWidth size="small">
-                        <Select
-                          value={voiceIndex}
-                          onChange={(e) => {
-                            const newIndex = Number(e.target.value);
-                            setVoiceIndex(newIndex);
-                            // Save voice preference
-                            localStorage.setItem('preferredVoiceIndex', String(newIndex));
-                          }}
-                          size="small"
-                        >
-                          {/* Group voices by gender */}
-                          <ListSubheader>Male Voices</ListSubheader>
-                          {availableVoices
-                            .filter(voice => voice.name.includes('Male') || voice.name.includes('male'))
-                            .map((voice, index) => (
-                              <MenuItem key={`male-${index}`} value={availableVoices.indexOf(voice)}>
-                                {voice.name} {voice.lang}
-                              </MenuItem>
-                            ))}
-                            
-                          <ListSubheader>Female Voices</ListSubheader>
-                          {availableVoices
-                            .filter(voice => voice.name.includes('Female') || voice.name.includes('female'))
-                            .map((voice, index) => (
-                              <MenuItem key={`female-${index}`} value={availableVoices.indexOf(voice)}>
-                                {voice.name} {voice.lang}
-                              </MenuItem>
-                            ))}
-                            
-                          <ListSubheader>Other Voices</ListSubheader>
-                          {availableVoices
-                            .filter(voice => 
-                              !voice.name.includes('Male') && 
-                              !voice.name.includes('male') && 
-                              !voice.name.includes('Female') && 
-                              !voice.name.includes('female')
-                            )
-                            .map((voice, index) => (
-                              <MenuItem key={`other-${index}`} value={availableVoices.indexOf(voice)}>
-                                {voice.name} {voice.lang}
-                              </MenuItem>
-                            ))}
-                        </Select>
-                      </FormControl>
-                    </Box>
-                  </Grid>
-                )}
               </Grid>
             </Box>
           </Collapse>

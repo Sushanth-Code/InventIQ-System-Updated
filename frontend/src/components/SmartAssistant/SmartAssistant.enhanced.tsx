@@ -37,16 +37,13 @@ import {
   Inventory as InventoryIcon,
   BarChart as BarChartIcon,
   Settings as SettingsIcon,
-  Info as InfoIcon,
-  VolumeUp as VolumeUpIcon,
-  VolumeOff as VolumeOffIcon
+  Info as InfoIcon
 } from '@mui/icons-material';
-import { ListSubheader } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import { inventoryService, predictionService } from '../../services/api';
 import enhancedOllamaService from '../../services/enhancedOllamaService';
 
-// Smart Inventory Assistant Component with enhanced features
+// Smart Inventory Assistant Component with enhanced Ollama integration
 const SmartAssistant: React.FC = () => {
   const { user } = useAuth();
   const [query, setQuery] = useState('');
@@ -56,114 +53,39 @@ const SmartAssistant: React.FC = () => {
   const [inventoryData, setInventoryData] = useState<any[]>([]);
   const [listening, setListening] = useState(false);
   const [speechRecognition, setSpeechRecognition] = useState<any>(null);
+  const [availableModels, setAvailableModels] = useState<string[]>(['llama3']);
+  const [selectedModel, setSelectedModel] = useState('llama3');
   const [showSettings, setShowSettings] = useState(false);
   const [temperature, setTemperature] = useState(0.7);
-  const [speaking, setSpeaking] = useState(false);
-  const [voiceIndex, setVoiceIndex] = useState(0); // For selecting voice
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [speechEnabled, setSpeechEnabled] = useState(true); // Speech enabled by default
   
   // Ref for messages container to auto-scroll
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   
-  // Fetch inventory data on component mount
+  // Fetch inventory data and initialize on component mount
   useEffect(() => {
     fetchInventoryData();
+    fetchAvailableModels();
     
-    // Check if we've shown welcome message in this session
-    const hasShownWelcome = sessionStorage.getItem('hasShownWelcome') === 'true';
-    
-    // Add welcome message only once per session
-    if (!hasShownWelcome) {
-      const welcomeMessageText = "Hello! I'm your Smart Inventory Assistant powered by Llama. I can help you manage your inventory, provide insights, and answer any questions you might have. What would you like to know today?";
-      const welcomeMessage = {
-        text: welcomeMessageText,
-        role: 'assistant' as const,
-        timestamp: new Date()
-      };
-      setMessages([welcomeMessage]);
-      
-      // Mark that we've shown the welcome message
-      sessionStorage.setItem('hasShownWelcome', 'true');
-      
-      // Store welcome message text for speech
-      sessionStorage.setItem('welcomeMessageText', welcomeMessageText);
-    }
+    // Add welcome message
+    const welcomeMessage = {
+      text: "Hello! I'm your Smart Inventory Assistant powered by Ollama. I can help you manage your inventory, provide insights, and answer any questions you might have. What would you like to know today?",
+      role: 'assistant' as const,
+      timestamp: new Date()
+    };
+    setMessages([welcomeMessage]);
     
     // Initialize speech recognition if available
     if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
       
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setQuery(transcript);
-        handleSubmit(transcript);
-      };
-      
-      recognition.onend = () => {
-        setListening(false);
-      };
+      recognition.onresult = onresult;
+      recognition.onend = onend;
       
       setSpeechRecognition(recognition);
-    }
-    
-    // Initialize speech synthesis
-    if ('speechSynthesis' in window) {
-      // Get available voices
-      const updateVoices = () => {
-        const voices = window.speechSynthesis.getVoices();
-        setAvailableVoices(voices);
-        
-        // Try to get saved voice preference
-        const savedVoiceIndex = localStorage.getItem('preferredVoiceIndex');
-        
-        if (savedVoiceIndex && voices.length > Number(savedVoiceIndex)) {
-          // Use saved voice preference if available
-          setVoiceIndex(Number(savedVoiceIndex));
-        } else {
-          // Group voices by gender for better selection
-          const maleVoices = voices.filter(voice => 
-            voice.name.includes('Male') || 
-            voice.name.includes('male')
-          );
-          
-          const femaleVoices = voices.filter(voice => 
-            voice.name.includes('Female') || 
-            voice.name.includes('female')
-          );
-          
-          // Set default voice - try to find a good quality voice
-          if (maleVoices.length > 0) {
-            // Set default to first male voice found
-            setVoiceIndex(voices.indexOf(maleVoices[0]));
-          } else if (femaleVoices.length > 0) {
-            // If no male voices, use female voice
-            setVoiceIndex(voices.indexOf(femaleVoices[0]));
-          } else if (voices.length > 0) {
-            // If no gender-specific voices, use the first available voice
-            setVoiceIndex(0);
-          }
-        }
-      };
-      
-      // Chrome loads voices asynchronously
-      if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = updateVoices;
-      }
-      
-      updateVoices();
-      
-      // Speak the welcome message if it exists and speech is enabled
-      setTimeout(() => {
-        const welcomeText = sessionStorage.getItem('welcomeMessageText');
-        if (welcomeText && speechEnabled) {
-          speakText(welcomeText);
-        }
-      }, 1000);
     }
   }, []);
   
@@ -176,6 +98,18 @@ const SmartAssistant: React.FC = () => {
       console.error('Error fetching inventory data:', error);
     }
   };
+
+  // Fetch available models from Ollama
+  const fetchAvailableModels = async () => {
+    try {
+      const models = await enhancedOllamaService.getModels();
+      if (models && models.length > 0) {
+        setAvailableModels(models.map((model: any) => model.name || 'llama3'));
+      }
+    } catch (error) {
+      console.error('Error fetching Ollama models:', error);
+    }
+  };
   
   // Auto-scroll to bottom of messages
   useEffect(() => {
@@ -184,57 +118,19 @@ const SmartAssistant: React.FC = () => {
     }
   }, [messages]);
   
-  // Toggle speech recognition
-  const toggleListening = () => {
-    if (!speechRecognition) return;
-    
-    if (listening) {
-      speechRecognition.stop();
-      setListening(false);
-    } else {
-      speechRecognition.start();
-      setListening(true);
-    }
+  // Handle speech recognition result
+  const onresult = (event: any) => {
+    const transcript = event.results[0][0].transcript;
+    setQuery(transcript);
+    handleSubmit(transcript);
   };
   
-  // Speech synthesis function
-  const speakText = (text: string) => {
-    if (!('speechSynthesis' in window) || !speechEnabled) return;
-    
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Set voice if available
-    if (availableVoices.length > 0 && voiceIndex >= 0) {
-      utterance.voice = availableVoices[voiceIndex];
-    }
-    
-    // Configure voice parameters
-    utterance.rate = 1.0; // Normal speed
-    utterance.pitch = 1.0; // Normal pitch
-    utterance.volume = 1.0; // Full volume
-    
-    // Handle speech events
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    
-    // Start speaking
-    window.speechSynthesis.speak(utterance);
-  };
-  
-  // Toggle speech synthesis
-  const toggleSpeech = () => {
-    if (speaking) {
-      window.speechSynthesis.cancel();
-      setSpeaking(false);
-    }
-    setSpeechEnabled(!speechEnabled);
+  // Handle speech recognition end
+  const onend = () => {
+    setListening(false);
   };
 
-  // Prepare inventory context for AI
+  // Prepare inventory context for Ollama
   const prepareInventoryContext = () => {
     // Count categories
     const categories: {[key: string]: number} = {};
@@ -286,14 +182,36 @@ const SmartAssistant: React.FC = () => {
     setQuery('');
     
     try {
-      // Get inventory context
+      // Check if Ollama is available
+      const isOllamaAvailable = await enhancedOllamaService.isAvailable();
+      
+      if (!isOllamaAvailable) {
+        throw new Error('Ollama service not available');
+      }
+      
+      // Prepare messages for chat API
+      const chatMessages = messages.map(msg => ({
+        role: msg.role,
+        content: msg.text
+      }));
+      
+      // Add inventory context to the user's message
       const inventoryContext = prepareInventoryContext();
+      chatMessages.push({
+        role: 'user',
+        content: `${submittedQuery}\n\n${inventoryContext}`
+      });
       
-      // Use the fallback response generator
-      const response = enhancedOllamaService.generateFallbackResponse(submittedQuery, inventoryContext);
-      
-      // Simulate a delay to make it feel like AI is thinking (more impressive)
-      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+      // Add a timeout to the Ollama request
+      const timeoutPromise = new Promise<string>((_, reject) => {
+        setTimeout(() => reject(new Error('Ollama request timed out')), 15000); // 15 second timeout
+      });
+
+      // Generate response using Ollama with timeout
+      const response = await Promise.race([
+        enhancedOllamaService.chat(chatMessages, temperature),
+        timeoutPromise
+      ]) as string;
       
       // Add AI message
       const aiMessage = {
@@ -303,24 +221,83 @@ const SmartAssistant: React.FC = () => {
       };
       
       setMessages(prev => [...prev, aiMessage]);
-      
-      // Speak the response if speech is enabled
-      if (speechEnabled) {
-        speakText(response);
-      }
     } catch (error) {
       console.error('Error generating response:', error);
       
-      // Add error message
-      const errorMessage = {
-        text: "I'm sorry, I encountered an error while processing your request. Please try again.",
+      // Handle common inventory queries as fallback
+      const fallbackResponse = handleFallbackResponse(submittedQuery, inventoryData);
+      
+      // Add fallback message
+      const fallbackMessage = {
+        text: fallbackResponse,
         role: 'assistant' as const,
         timestamp: new Date()
       };
       
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, fallbackMessage]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fallback responses for when Ollama is unavailable
+  const handleFallbackResponse = (query: string, inventoryData: any[]): string => {
+    const queryLower = query.toLowerCase();
+    
+    // Check for various query intents
+    if (queryLower.includes('low stock') || queryLower.includes('restock')) {
+      const lowStockItems = inventoryData.filter(item => 
+        item.current_stock <= item.reorder_level && item.current_stock > 0
+      );
+      
+      if (lowStockItems.length === 0) {
+        return "Good news! You don't have any items that need restocking at the moment.";
+      }
+      
+      return `I found ${lowStockItems.length} items that need restocking soon. The most critical ones are: 
+        ${lowStockItems.slice(0, 3).map(item => `${item.name} (${item.current_stock}/${item.reorder_level})`).join(', ')}`;
+    }
+    
+    if (queryLower.includes('trend') || queryLower.includes('trending') || queryLower.includes('popular')) {
+      const trendingItems = inventoryData
+        .filter(item => item.historical_sales)
+        .sort((a, b) => {
+          const aValues = Object.values(a.historical_sales || {}) as number[];
+          const bValues = Object.values(b.historical_sales || {}) as number[];
+          const aSum = aValues.reduce((sum: number, val: any) => sum + (Number(val) || 0), 0);
+          const bSum = bValues.reduce((sum: number, val: any) => sum + (Number(val) || 0), 0);
+          return bSum - aSum;
+        })
+        .slice(0, 5);
+        
+      return `Based on recent sales data, your top trending products are: 
+        ${trendingItems.map(item => item.name).join(', ')}`;
+    }
+    
+    if (queryLower.includes('date') || queryLower.includes('today')) {
+      const today = new Date();
+      const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      return `Today is ${today.toLocaleDateString('en-US', options)}. How can I help you with your inventory management?`;
+    }
+    
+    if (queryLower.includes('time') || queryLower.includes('clock')) {
+      const now = new Date();
+      return `The current time is ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}. How can I assist you with your inventory today?`;
+    }
+    
+    return "I'm currently having trouble connecting to the AI service. Please check that Ollama is running properly. In the meantime, you can ask me about low stock items, trending products, or basic inventory information.";
+  };
+  
+  // Toggle speech recognition
+  const toggleListening = () => {
+    if (!speechRecognition) return;
+    
+    if (listening) {
+      speechRecognition.stop();
+      setListening(false);
+    } else {
+      speechRecognition.start();
+      setListening(true);
     }
   };
   
@@ -384,7 +361,7 @@ const SmartAssistant: React.FC = () => {
       </Typography>
       
       <Typography variant="body1" paragraph>
-        Ask questions about your inventory in natural language and get intelligent insights powered by Llama AI.
+        Ask questions about your inventory in natural language and get intelligent insights powered by Ollama AI.
       </Typography>
       
       <Box sx={{ display: 'flex', gap: 3, mt: 3 }}>
@@ -406,40 +383,15 @@ const SmartAssistant: React.FC = () => {
                 Smart Assistant
               </Typography>
               <Chip 
-                label="Powered by Llama" 
+                label={selectedModel} 
                 size="small" 
                 color="primary" 
                 variant="outlined" 
               />
             </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title={speaking ? "Speaking..." : (speechEnabled ? "Voice output enabled" : "Voice output disabled")}>
-                <IconButton 
-                  color={speaking ? "secondary" : (speechEnabled ? "primary" : "default")}
-                  onClick={toggleSpeech}
-                  sx={{ 
-                    animation: speaking ? 'pulse 1.5s infinite' : 'none',
-                    '@keyframes pulse': {
-                      '0%': { opacity: 1 },
-                      '50%': { opacity: 0.5 },
-                      '100%': { opacity: 1 }
-                    }
-                  }}
-                >
-                  <VolumeUpIcon />
-                </IconButton>
-              </Tooltip>
-              <IconButton 
-                color={listening ? "error" : "primary"}
-                onClick={toggleListening}
-                disabled={!speechRecognition}
-              >
-                {listening ? <MicOffIcon /> : <MicIcon />}
-              </IconButton>
-              <IconButton onClick={() => setShowSettings(!showSettings)}>
-                <SettingsIcon />
-              </IconButton>
-            </Box>
+            <IconButton onClick={() => setShowSettings(!showSettings)}>
+              <SettingsIcon />
+            </IconButton>
           </Box>
           
           {/* Settings Panel */}
@@ -449,7 +401,21 @@ const SmartAssistant: React.FC = () => {
                 Assistant Settings
               </Typography>
               <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Model</InputLabel>
+                    <Select
+                      value={selectedModel}
+                      label="Model"
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                    >
+                      {availableModels.map((model) => (
+                        <MenuItem key={model} value={model}>{model}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={6}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="body2">Temperature:</Typography>
                     <Slider
@@ -467,58 +433,6 @@ const SmartAssistant: React.FC = () => {
                     </Tooltip>
                   </Box>
                 </Grid>
-                {availableVoices.length > 0 && (
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2">Voice:</Typography>
-                      <FormControl fullWidth size="small">
-                        <Select
-                          value={voiceIndex}
-                          onChange={(e) => {
-                            const newIndex = Number(e.target.value);
-                            setVoiceIndex(newIndex);
-                            // Save voice preference
-                            localStorage.setItem('preferredVoiceIndex', String(newIndex));
-                          }}
-                          size="small"
-                        >
-                          {/* Group voices by gender */}
-                          <ListSubheader>Male Voices</ListSubheader>
-                          {availableVoices
-                            .filter(voice => voice.name.includes('Male') || voice.name.includes('male'))
-                            .map((voice, index) => (
-                              <MenuItem key={`male-${index}`} value={availableVoices.indexOf(voice)}>
-                                {voice.name} {voice.lang}
-                              </MenuItem>
-                            ))}
-                            
-                          <ListSubheader>Female Voices</ListSubheader>
-                          {availableVoices
-                            .filter(voice => voice.name.includes('Female') || voice.name.includes('female'))
-                            .map((voice, index) => (
-                              <MenuItem key={`female-${index}`} value={availableVoices.indexOf(voice)}>
-                                {voice.name} {voice.lang}
-                              </MenuItem>
-                            ))}
-                            
-                          <ListSubheader>Other Voices</ListSubheader>
-                          {availableVoices
-                            .filter(voice => 
-                              !voice.name.includes('Male') && 
-                              !voice.name.includes('male') && 
-                              !voice.name.includes('Female') && 
-                              !voice.name.includes('female')
-                            )
-                            .map((voice, index) => (
-                              <MenuItem key={`other-${index}`} value={availableVoices.indexOf(voice)}>
-                                {voice.name} {voice.lang}
-                              </MenuItem>
-                            ))}
-                        </Select>
-                      </FormControl>
-                    </Box>
-                  </Grid>
-                )}
               </Grid>
             </Box>
           </Collapse>
