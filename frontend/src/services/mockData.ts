@@ -86,9 +86,9 @@ const sampleInventoryData: Product[] = [
 
 // Mock dashboard data
 export const mockDashboardData = {
-  totalProducts: 180,
-  lowStockProducts: 23,
-  outOfStockProducts: 5,
+  totalProducts: 200, // Updated to match the actual product count in the CSV
+  lowStockProducts: 25,
+  outOfStockProducts: 8,
   totalCategories: 6,
   totalSuppliers: 4,
   recentTransactions: [
@@ -161,6 +161,8 @@ export const loadInventoryData = async (): Promise<Product[]> => {
       if (!lines[i].trim()) continue; // Skip empty lines
       
       const values = lines[i].split(',');
+      if (values.length < 9) continue; // Skip malformed lines
+      
       const product: any = {};
       
       // Map CSV columns to product properties
@@ -191,11 +193,74 @@ export const loadInventoryData = async (): Promise<Product[]> => {
     }
     
     console.log(`Loaded ${products.length} products from CSV file`);
-    return products;
+    
+    // If we successfully loaded products, return them
+    if (products.length > 0) {
+      return products;
+    } else {
+      // If no products were loaded, throw an error to trigger the fallback
+      throw new Error('No products loaded from CSV');
+    }
   } catch (error) {
     console.error('Error loading CSV data:', error);
-    console.log('Falling back to sample data');
-    return sampleInventoryData;
+    // Try to load from the data folder directly if public folder fails
+    try {
+      const response = await fetch('/data/inventory_data.csv');
+      if (!response.ok) {
+        throw new Error('Failed to fetch inventory data from alternate location');
+      }
+      
+      const csvText = await response.text();
+      const lines = csvText.split('\n');
+      
+      // Parse the CSV data into an array of products
+      const products: Product[] = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue; // Skip empty lines
+        
+        const values = lines[i].split(',');
+        if (values.length < 9) continue; // Skip malformed lines
+        
+        const product: any = {};
+        
+        // Map CSV columns to product properties
+        product.id = values[0];
+        product.product_id = values[0];
+        product.name = values[1];
+        product.category = values[2];
+        product.supplier = values[3];
+        product.current_stock = parseInt(values[4]);
+        product.reorder_level = parseInt(values[5]);
+        product.purchase_price = parseFloat(values[6]);
+        product.selling_price = parseFloat(values[7]);
+        product.lead_time = parseInt(values[8]);
+        
+        // Parse historical sales if available
+        if (values[9]) {
+          try {
+            const salesStr = values[9].replace(/'/g, '"');
+            product.historical_sales = JSON.parse(salesStr);
+          } catch (e) {
+            console.error('Error parsing historical sales for product', product.id, e);
+            product.historical_sales = {};
+          }
+        }
+        
+        products.push(product as Product);
+      }
+      
+      console.log(`Loaded ${products.length} products from alternate CSV location`);
+      if (products.length > 0) {
+        return products;
+      }
+    } catch (altError) {
+      console.error('Error loading from alternate location:', altError);
+    }
+    
+    // Only use the first 5 products from sample data as requested
+    console.log('Using only the first 5 products from sample data');
+    return sampleInventoryData.slice(0, 5);
   }
 };
 
